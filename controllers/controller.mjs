@@ -5,31 +5,30 @@ import { body, validationResult } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 
-// Set up multer for image upload
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only images are allowed!'), false);
-  }
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 1024 * 1024 * 5, // 5 MB limit
-  },
-});
+    destination: (req, file, cb) => {
+        cb(null, 'public/uploads/'); // Ensure 'public/uploads' directory exists
+      },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    },
+  });
+  
+  const fileFilter = (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images are allowed!'), false);
+    }
+  };
+  
+  const upload = multer({
+    storage,
+    fileFilter,
+    limits: {
+      fileSize: 1024 * 1024 * 5, // 5 MB limit
+    },
+  });
 
 export const signup = async (req, res) => {
   // Define the validation rules
@@ -84,7 +83,7 @@ export const signin = async (req, res) => {
     } else if (resolved.userexist) {
       const accessToken = await signUserjwt(resolved.user);
       const refreshToken = await signRefreshToken(resolved.user);
-      res.cookie('jwt', accessToken, { httpOnly: true, maxAge: 100000 }).cookie('refreshtoken', refreshToken, { httpOnly: true, maxAge: 900000 }).json({
+      res.cookie('jwt', accessToken, { httpOnly: true, maxAge: 400000 }).cookie('refreshtoken', refreshToken, { httpOnly: true, maxAge: 900000 }).json({
         message: "User logged in",
         accessToken,
         refreshToken
@@ -101,11 +100,10 @@ export const home = (req, res) => {
 };
 
 export const createPost = [
-  upload.single('image'), // Handle single image upload with field name 'image'
+  upload.single('image'), 
   async (req, res) => {
     const { title } = req.body;
-    const { user } = req; // Assuming user is added to the request object after authentication
-
+    const { user } = req; 
     try {
       if (!title || !req.file) {
         return res.status(400).json({ message: 'Title and image are required' });
