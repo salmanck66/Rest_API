@@ -135,15 +135,27 @@ export const createPost = [
   ];
 
 
-export const getPosts = async (req, res) => {
+  export const getPosts = async (req, res) => {
     try {
-      const { user } = req; 
-      const userData = await User.findById(user._id);
-      if (!userData) {
-        return res.status(404).json({ message: 'User not found' });
+      const { userId } = req.query; // Assuming userId is passed as a query parameter
+  
+      let posts;
+      if (userId) {
+        // Find posts by specific user
+        const user = await User.findById(userId).populate('posts');
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        posts = user.posts;
+      } else {
+        // Get all posts and sort them by createdAt in descending order
+        posts = await User.aggregate([
+          { $unwind: '$posts' },
+          { $sort: { 'posts.createdAt': -1 } },
+          { $project: { _id: 0, post: '$posts' } }
+        ]);
       }
   
-      const posts = userData.posts;
       res.status(200).json(posts);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -238,6 +250,104 @@ export const deletePost = async (req, res) => {
   }
 };
 
+export const followers = async (req, res) => {
+    try {
+      const { user } = req;
+      const userData = await User.findById(user._id).populate('followers', 'userName mail');
+  
+      if (!userData) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      res.status(200).json(userData.followers);
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  };
+  
+  export const followUser = async (req, res) => {
+    try {
+      const { user } = req;
+      const { Id } = req.params;
+  
+      const userToFollow = await User.findById(Id);
+      if (!userToFollow) {
+        return res.status(404).json({ message: 'User to follow not found' });
+      }
+  
+      if (!user.followers.includes(Id)) {
+        user.followers.push(Id);
+        await user.save();
+        res.status(200).json({ message: 'User followed successfully' });
+      } else {
+        res.status(400).json({ message: 'Already following this user' });
+      }
+    } catch (error) {
+      console.error('Error following user:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  };
+
+
 export const signout = (req, res) => {
   res.clearCookie('jwt').clearCookie('refreshtoken').json({ message: 'User signed out successfully' });
 };
+
+export const toggleFollowUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const userToFollowOrUnfollow = await User.findById(id);
+    if (!userToFollowOrUnfollow) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = await User.findById(userId);
+    const isFollowing = user.followers.some(followerId => followerId.equals(id));
+
+    if (isFollowing) {
+      await User.updateOne(
+        { _id: userId },
+        { $pull: { followers: id } }
+      );
+      res.status(200).json({ message: 'User unfollowed successfully' });
+    } else {
+      await User.updateOne(
+        { _id: userId },
+        { $addToSet: { followers: id } }
+      );
+      res.status(200).json({ message: 'User followed successfully' });
+    }
+  } catch (error) {
+    console.error('Error toggling follow/unfollow:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+}
+export const followerss = async (req, res) => {
+    try {
+      const userId = req.user._id;
+  
+      const userWithFollowers = await User.aggregate([
+        { $match: { _id: userId } },
+        { $lookup: {
+            from: 'users',
+            localField: 'followers',
+            foreignField: '_id',
+            as: 'followersDetails'
+          }
+        },
+        { $project: { followersDetails: 1, _id: 0 } }
+      ]);
+  
+      if (!userWithFollowers.length) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      res.status(200).json({ followers: userWithFollowers[0].followersDetails });
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  };
