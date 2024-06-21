@@ -1,15 +1,44 @@
+import { User } from '../models/User.mjs';
 import { userSignUp, signhelp } from '../helpers/signInUp.mjs';
 import { signUserjwt, signRefreshToken } from '../middlewares/jwt.mjs';
 import { body, validationResult } from 'express-validator';
+import multer from 'multer';
+import path from 'path';
+
+// Set up multer for image upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only images are allowed!'), false);
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 1024 * 1024 * 5, // 5 MB limit
+  },
+});
 
 export const signup = async (req, res) => {
   // Define the validation rules
   await body('mail').isEmail().withMessage('Must be a valid email').run(req);
-  await body('phno').isLength({ min: 10, max: 10 }).withMessage('Phone number must be exactly 10 digits').isNumeric().withMessage('Phone number must be numeric').run(req);
+  await body('phno').isLength({ min: 10, max: 10 }).withMessage('Phone number must be exactly 10 digits')
+    .isNumeric().withMessage('Phone number must be numeric').run(req);
   await body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
     .matches(/[0-9]/).withMessage('Password must contain a number')
-    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter')
-    .run(req);
+    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter').run(req);
 
   // Check for validation errors
   const errors = validationResult(req);
@@ -37,8 +66,7 @@ export const signin = async (req, res) => {
   await body('mail').isEmail().withMessage('Must be a valid email').run(req);
   await body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
     .matches(/[0-9]/).withMessage('Password must contain a number')
-    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter')
-    .run(req);
+    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter').run(req);
 
   // Check for validation errors
   const errors = validationResult(req);
@@ -56,11 +84,11 @@ export const signin = async (req, res) => {
     } else if (resolved.userexist) {
       const accessToken = await signUserjwt(resolved.user);
       const refreshToken = await signRefreshToken(resolved.user);
-      res.cookie('jwt', accessToken, { httpOnly: true, maxAge: 900000 }).json({
+      res.cookie('jwt', accessToken, { httpOnly: true, maxAge: 100000 }).cookie('refreshtoken', refreshToken, { httpOnly: true, maxAge: 900000 }).json({
         message: "User logged in",
         accessToken,
         refreshToken
-      });
+      })
     }
   } catch (error) {
     console.error('Error in signin:', error);
@@ -70,4 +98,97 @@ export const signin = async (req, res) => {
 
 export const home = (req, res) => {
   res.status(200).json("Connected");
+};
+
+export const createPost = [
+  upload.single('image'), // Handle single image upload with field name 'image'
+  async (req, res) => {
+    const { title } = req.body;
+    const { user } = req; // Assuming user is added to the request object after authentication
+
+    try {
+      if (!title || !req.file) {
+        return res.status(400).json({ message: 'Title and image are required' });
+      }
+
+      const newPost = {
+        title,
+        image: req.file.filename,
+        createdAt: new Date()
+      };
+
+      // Update user's posts array
+      await User.findByIdAndUpdate(user._id, { $push: { posts: newPost } });
+
+      res.status(201).json({ message: 'Post created successfully', post: newPost });
+    } catch (error) {
+      console.error('Error creating post:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+];
+
+export const editPost = [
+  upload.single('image'), // Handle single image upload with field name 'image'
+  async (req, res) => {
+    const { postId, title } = req.body;
+    const { user } = req; // Assuming user is added to the request object after authentication
+
+    try {
+      const errors = validationResult(req);
+      if (!postId || !title) {
+        return res.status(400).json({ message: 'Post ID and title are required' });
+      }
+
+      const updateData = { title, updatedAt: new Date() };
+      if (req.file) {
+        updateData.image = req.file.filename;
+      }
+
+      // Find and update the post
+      const updatedPost = await User.findOneAndUpdate(
+        { _id: user._id, 'posts._id': postId },
+        { $set: { 'posts.$': updateData } },
+        { new: true }
+      );
+
+      if (!updatedPost) {
+        return res.status(404).json({ message: 'Post not found' });
+      }
+
+      res.status(200).json({ message: 'Post updated successfully', post: updatedPost.posts.id(postId) });
+    } catch (error) {
+      console.error('Error updating post:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+];
+
+export const deletePost = async (req, res) => {
+  const { postId } = req.params;
+  const { user } = req; // Assuming user is added to the request object after authentication
+
+  try {
+    if (!postId) {
+      return res.status(400).json({ message: 'Post ID is required' });
+    }
+
+    const result = await User.updateOne(
+      { _id: user._id },
+      { $pull: { posts: { _id: postId } } }
+    );
+
+    if (result.nModified === 0) {
+      return res.status(404).json({ message: 'Post not found or not authorized to delete' });
+    }
+
+    res.status(200).json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+export const signout = (req, res) => {
+  res.clearCookie('jwt').clearCookie('refreshtoken').json({ message: 'User signed out successfully' });
 };
