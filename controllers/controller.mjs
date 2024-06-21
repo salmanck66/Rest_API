@@ -125,6 +125,23 @@ export const createPost = [
     }
   }
 ];
+export const getPosts = async (req, res) => {
+    try {
+      const { user } = req; // Assuming user is added to the request object after authentication
+  
+      // Fetch user's posts from the database
+      const userData = await User.findById(user._id);
+      if (!userData) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      const posts = userData.posts;
+      res.status(200).json(posts);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+  };
 
 export const editPost = [
   upload.single('image'), // Handle single image upload with field name 'image'
