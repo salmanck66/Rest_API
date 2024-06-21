@@ -100,36 +100,44 @@ export const home = (req, res) => {
 };
 
 export const createPost = [
-  upload.single('image'), 
-  async (req, res) => {
-    const { title } = req.body;
-    const { user } = req; 
-    try {
-      if (!title || !req.file) {
-        return res.status(400).json({ message: 'Title and image are required' });
+    upload.single('image'),
+    async (req, res) => {
+      const { title } = req.body;
+      const { user } = req;
+  
+      try {
+        if (!title || !req.file) {
+          return res.status(400).json({ message: 'Title and image are required' });
+        }
+  
+        const newPost = {
+          title,
+          image: req.file.filename,
+          createdAt: new Date(),
+        };
+  
+        const updatedUser = await User.findByIdAndUpdate(
+          user._id,
+          { $push: { posts: newPost } },
+          { new: true }
+        );
+  
+        if (!updatedUser) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+  
+        res.status(201).json({ message: 'Post created successfully', post: newPost });
+      } catch (error) {
+        console.error('Error creating post:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
       }
+    },
+  ];
 
-      const newPost = {
-        title,
-        image: req.file.filename,
-        createdAt: new Date()
-      };
 
-      // Update user's posts array
-      await User.findByIdAndUpdate(user._id, { $push: { posts: newPost } });
-
-      res.status(201).json({ message: 'Post created successfully', post: newPost });
-    } catch (error) {
-      console.error('Error creating post:', error);
-      res.status(500).json({ message: 'Internal Server Error' });
-    }
-  }
-];
 export const getPosts = async (req, res) => {
     try {
-      const { user } = req; // Assuming user is added to the request object after authentication
-  
-      // Fetch user's posts from the database
+      const { user } = req; 
       const userData = await User.findById(user._id);
       if (!userData) {
         return res.status(404).json({ message: 'User not found' });
@@ -143,41 +151,67 @@ export const getPosts = async (req, res) => {
     }
   };
 
-export const editPost = [
-  upload.single('image'), // Handle single image upload with field name 'image'
-  async (req, res) => {
-    const { postId, title } = req.body;
-    const { user } = req; // Assuming user is added to the request object after authentication
-
-    try {
-      const errors = validationResult(req);
-      if (!postId || !title) {
-        return res.status(400).json({ message: 'Post ID and title are required' });
+  export const editPost = [
+    upload.single('image'), 
+    async (req, res) => {
+      const postId = req.params.postId;
+      const { title } = req.body;
+      const { user } = req; // Assuming user is added to the request object after authentication
+  
+      try {
+        const errors = validationResult(req);
+        if (!postId || (!title && !req.file)) {
+          return res.status(400).json({ message: 'Post ID and either title or image are required' });
+        }
+  
+        const updateData = { updatedAt: new Date() };
+        
+        if (title) {
+          updateData.title = title;
+        }
+  
+        if (req.file) {
+          updateData.image = req.file.filename;
+  
+          // Example: Delete old image file (optional)
+          // Find the post and get the old image filename
+          const post = await User.findOne({ _id: user._id, 'posts._id': postId });
+          if (post && post.posts) {
+            const oldImageFilename = post.posts.find(p => p._id.toString() === postId)?.image;
+            if (oldImageFilename) {
+              // Delete old image file from storage (you need to implement this function)
+              deleteImageFile(oldImageFilename);
+            }
+          }
+        }
+  
+        // Find and update the post
+        const updatedPost = await User.findOneAndUpdate(
+          { _id: user._id, 'posts._id': postId },
+          { $set: { 'posts.$': updateData } },
+          { new: true }
+        );
+  
+        if (!updatedPost) {
+          return res.status(404).json({ message: 'Post not found' });
+        }
+  
+        // Prepare response with detailed post information
+        const updatedPostDetails = {
+          _id: updatedPost._id,
+          title: updatedPost.title,
+          image: updatedPost.image,
+          createdAt: updatedPost.createdAt,
+        };
+  
+        res.status(200).json({ message: 'Post updated successfully', post: updatedPostDetails });
+      } catch (error) {
+        console.error('Error updating post:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
       }
-
-      const updateData = { title, updatedAt: new Date() };
-      if (req.file) {
-        updateData.image = req.file.filename;
-      }
-
-      // Find and update the post
-      const updatedPost = await User.findOneAndUpdate(
-        { _id: user._id, 'posts._id': postId },
-        { $set: { 'posts.$': updateData } },
-        { new: true }
-      );
-
-      if (!updatedPost) {
-        return res.status(404).json({ message: 'Post not found' });
-      }
-
-      res.status(200).json({ message: 'Post updated successfully', post: updatedPost.posts.id(postId) });
-    } catch (error) {
-      console.error('Error updating post:', error);
-      res.status(500).json({ message: 'Internal Server Error' });
     }
-  }
-];
+  ];
+  
 
 export const deletePost = async (req, res) => {
   const { postId } = req.params;

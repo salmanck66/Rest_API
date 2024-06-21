@@ -8,8 +8,8 @@ router.post("/signup",signup)
 router.post("/signin",signin)
 router.post("/signout",signout)
 
-router.get('/posts',authenticateUser, getPosts);
-router.post('/new-post', authenticateUser, createPost)
+router.get('/post',authenticateUser, getPosts);
+router.post('/post', authenticateUser, createPost)
 router.put('/post/:postId', authenticateUser, editPost)
 router.delete('/post/:postId', authenticateUser, deletePost)
 
