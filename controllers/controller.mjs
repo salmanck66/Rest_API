@@ -112,7 +112,7 @@ export const signin = async (req, res) => {
 };
 
 export const home = (req, res) => {
-  res.status(200).json("Connected");
+  res.redirect('/api-docs');
 };
 
 export const createPost = [
