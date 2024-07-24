@@ -156,22 +156,21 @@ export const createPost = [
 
 export const getPosts = async (req, res) => {
   try {
-    const { userId } = req.query; // Assuming userId is passed as a query parameter
 
+    const { userId } = req.query;
     let posts;
     if (userId) {
-      // Find posts by specific user
-      const user = await User.findById(userId).populate("posts");
+
+      const user = await User.aggregate
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       posts = user.posts;
     } else {
-      // Get all posts and sort them by createdAt in descending order
       posts = await User.aggregate([
         { $unwind: "$posts" },
         { $sort: { "posts.createdAt": -1 } },
-        { $project: { _id: 0, post: "$posts" } },
+        { $project: { _id: 1, post: "$posts" } },
       ]);
     }
 
@@ -187,7 +186,7 @@ export const editPost = [
   async (req, res) => {
     const postId = req.params.postId;
     const { title } = req.body;
-    const { user } = req; // Assuming user is added to the request object after authentication
+    const { user } = req; 
 
     try {
       const errors = validationResult(req);
@@ -205,16 +204,12 @@ export const editPost = [
 
       if (req.file) {
         updateData.image = req.file.filename;
-
-        // Example: Delete old image file (optional)
-        // Find the post and get the old image filename
         const post = await User.findOne({ _id: user._id, "posts._id": postId });
         if (post && post.posts) {
           const oldImageFilename = post.posts.find(
             (p) => p._id.toString() === postId
           )?.image;
           if (oldImageFilename) {
-            // Delete old image file from storage (you need to implement this function)
             deleteImageFile(oldImageFilename);
           }
         }
@@ -330,7 +325,6 @@ export const toggleFollowUser = async (req, res) => {
       const { id } = req.params;
       const userId = req.user._id;
   
-      // Check if the user is trying to follow themselves
       if (id === userId.toString()) {
         return res.status(400).json({ message: "Cannot follow yourself" });
       }
