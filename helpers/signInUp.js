@@ -1,10 +1,10 @@
-import bcrypt from 'bcrypt';
-import { User } from '../models/User.mjs';
+import bcrypt from "bcrypt";
+import { User } from "../models/user.js";
 
 export async function userSignUp(userData) {
   const { mail, password, userName, phno } = userData;
   try {
-    console.log(mail,password,userName,phno)
+    console.log(mail, password, userName, phno);
     const exist = await User.findOne({ mail });
     if (exist) {
       return { exist: true };
@@ -14,13 +14,13 @@ export async function userSignUp(userData) {
         userName: userName,
         mail: mail,
         password: hashed,
-        phno: phno
+        phno: phno,
       });
       const savedUser = await user.save();
       return { success: true, user: savedUser };
     }
   } catch (error) {
-    console.error('Error in userSignUp:', error);
+    console.error("Error in userSignUp:", error);
     throw error;
   }
 }
@@ -39,7 +39,7 @@ export async function signhelp(mail, password) {
       return { usernotfound: true };
     }
   } catch (error) {
-    console.error('Error in signhelp:', error);
+    console.error("Error in signhelp:", error);
     throw error;
   }
 }

@@ -1,14 +1,14 @@
 // index.js or app.mjs
 
 import express from 'express';
-import router from './routes/router.mjs';
+import router from './routes/router.js';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swagger.mjs';
+import swaggerSpec from './swagger.js';
 
 dotenv.config();
 const __dirname = dirname(fileURLToPath(import.meta.url));

@@ -10,8 +10,8 @@ import {
   createPost,
   editPost,
   deletePost,
-} from '../controllers/controller.mjs';
-import { authenticateUser } from '../helpers/authenticateUser.mjs';
+} from '../controllers/controller.js';
+import { authenticateUser } from '../helpers/authenticateUser.js';
 const router = express.Router();
 
 /**

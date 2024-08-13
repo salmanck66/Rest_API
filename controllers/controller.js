@@ -1,13 +1,13 @@
-import { User } from "../models/User.mjs";
-import { userSignUp, signhelp } from "../helpers/signInUp.mjs";
-import { signUserjwt, signRefreshToken } from "../middlewares/jwt.mjs";
+import { User } from "../models/user.js";
+import { userSignUp, signhelp } from "../helpers/signInUp.js";
+import { signUserjwt, signRefreshToken } from "../middlewares/jwt.js";
 import { body, validationResult } from "express-validator";
 import multer from "multer";
 import path from "path";
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "public/uploads/"); 
+    cb(null, "public/uploads/");
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -26,7 +26,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 1024 * 1024 * 5, 
+    fileSize: 1024 * 1024 * 5,
   },
 });
 
@@ -102,7 +102,7 @@ export const signin = async (req, res) => {
           maxAge: 900000,
         })
         .json({
-          message: "User logged in"
+          message: "User logged in",
         });
     }
   } catch (error) {
@@ -112,7 +112,7 @@ export const signin = async (req, res) => {
 };
 
 export const home = (req, res) => {
-  res.redirect('/api-docs');
+  res.redirect("/api-docs");
 };
 
 export const createPost = [
@@ -156,12 +156,10 @@ export const createPost = [
 
 export const getPosts = async (req, res) => {
   try {
-
     const { userId } = req.query;
     let posts;
     if (userId) {
-
-      const user = await User.aggregate
+      const user = await User.aggregate;
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -186,7 +184,7 @@ export const editPost = [
   async (req, res) => {
     const postId = req.params.postId;
     const { title } = req.body;
-    const { user } = req; 
+    const { user } = req;
 
     try {
       const errors = validationResult(req);
@@ -231,12 +229,10 @@ export const editPost = [
         createdAt: updatedPost.createdAt,
       };
 
-      res
-        .status(200)
-        .json({
-          message: "Post updated successfully",
-          post: updatedPostDetails,
-        });
+      res.status(200).json({
+        message: "Post updated successfully",
+        post: updatedPostDetails,
+      });
     } catch (error) {
       console.error("Error updating post:", error);
       res.status(500).json({ message: "Internal Server Error" });
@@ -246,7 +242,7 @@ export const editPost = [
 
 export const deletePost = async (req, res) => {
   const { postId } = req.params;
-  const { user } = req; 
+  const { user } = req;
 
   try {
     if (!postId) {
@@ -321,34 +317,36 @@ export const signout = (req, res) => {
 };
 
 export const toggleFollowUser = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user._id;
-  
-      if (id === userId.toString()) {
-        return res.status(400).json({ message: "Cannot follow yourself" });
-      }
-  
-      const userToFollowOrUnfollow = await User.findById(id);
-      if (!userToFollowOrUnfollow) {
-        return res.status(404).json({ message: "User not found" });
-      }
-  
-      const user = await User.findById(userId);
-      const isFollowing = user.followers.some((followerId) => followerId.equals(id));
-  
-      if (isFollowing) {
-        await User.updateOne({ _id: userId }, { $pull: { followers: id } });
-        return res.status(200).json({ message: "User unfollowed successfully" });
-      } else {
-        await User.updateOne({ _id: userId }, { $addToSet: { followers: id } });
-        return res.status(200).json({ message: "User followed successfully" });
-      }
-    } catch (error) {
-      console.error("Error toggling follow/unfollow:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    if (id === userId.toString()) {
+      return res.status(400).json({ message: "Cannot follow yourself" });
     }
+
+    const userToFollowOrUnfollow = await User.findById(id);
+    if (!userToFollowOrUnfollow) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = await User.findById(userId);
+    const isFollowing = user.followers.some((followerId) =>
+      followerId.equals(id)
+    );
+
+    if (isFollowing) {
+      await User.updateOne({ _id: userId }, { $pull: { followers: id } });
+      return res.status(200).json({ message: "User unfollowed successfully" });
+    } else {
+      await User.updateOne({ _id: userId }, { $addToSet: { followers: id } });
+      return res.status(200).json({ message: "User followed successfully" });
+    }
+  } catch (error) {
+    console.error("Error toggling follow/unfollow:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
+};
 
 export const followerss = async (req, res) => {
   try {
@@ -367,7 +365,7 @@ export const followerss = async (req, res) => {
       {
         $project: {
           followersDetails: {
-            _id:1,
+            _id: 1,
             userName: 1,
             posts: 1,
           },
